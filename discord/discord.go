@@ -14,6 +14,7 @@ import (
 	"github.com/h2non/filetype"
 	"golang.org/x/net/proxy"
 	"log"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
@@ -82,8 +83,11 @@ func StartBot(ctx context.Context, token string) {
 	checkEnvVariable()
 	common.SysLog("Bot is now running. Enjoy It.")
 
-	if CozeBotStayActiveEnable != "0" {
-		go scheduleDailyMessage()
+	// 每日9点 重新加载userAuth
+	go loadUserAuthTask()
+
+	if CozeBotStayActiveEnable == "1" || CozeBotStayActiveEnable == "" {
+		go stayActiveMessageTask()
 	}
 
 	go func() {
@@ -99,6 +103,33 @@ func StartBot(ctx context.Context, token string) {
 	<-sc
 }
 
+func loadUserAuthTask() {
+	for {
+		source := rand.NewSource(time.Now().UnixNano())
+		randomNumber := rand.New(source).Intn(60) // 生成0到60之间的随机整数
+
+		// 计算距离下一个时间间隔
+		now := time.Now()
+		next := time.Date(now.Year(), now.Month(), now.Day(), 9, 0, 0, 0, now.Location())
+
+		// 如果当前时间已经超过9点，那么等待到第二天的9点
+		if now.After(next) {
+			next = next.Add(24 * time.Hour)
+		}
+
+		delay := next.Sub(now)
+
+		// 等待直到下一个间隔
+		time.Sleep(delay + time.Duration(randomNumber)*time.Second)
+
+		common.SysLog("CDP Scheduled loadUserAuth Task Job Start!")
+		UserAuthorizations = strings.Split(UserAuthorization, ",")
+		common.LogInfo(context.Background(), fmt.Sprintf("UserAuths: %+v", UserAuthorizations))
+		common.SysLog("CDP Scheduled loadUserAuth Task Job  End!")
+
+	}
+}
+
 func checkEnvVariable() {
 	if UserAuthorization == "" {
 		common.FatalLog("环境变量 USER_AUTHORIZATION 未设置")
@@ -109,7 +140,7 @@ func checkEnvVariable() {
 	if GuildId == "" {
 		common.FatalLog("环境变量 GUILD_ID 未设置")
 	}
-	if ChannelId == "" {
+	if DefaultChannelEnable == "1" && ChannelId == "" {
 		common.FatalLog("环境变量 CHANNEL_ID 未设置")
 	}
 	if CozeBotId == "" {
@@ -180,17 +211,17 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	// 尝试获取 stopChan
 	stopChan, exists := ReplyStopChans[m.ReferencedMessage.ID]
 	if !exists {
-		channel, err := Session.Channel(m.ChannelID)
+		//channel, err := Session.Channel(m.ChannelID)
 		// 不存在则直接删除频道
-		if err != nil || strings.HasPrefix(channel.Name, "cdp-对话") {
-			SetChannelDeleteTimer(m.ChannelID, 5*time.Minute)
-			return
-		}
+		//if err != nil || strings.HasPrefix(channel.Name, "cdp-对话") {
+		//SetChannelDeleteTimer(m.ChannelID, 5*time.Minute)
+		return
+		//}
 	}
 
 	// 如果作者为 nil 或消息来自 bot 本身,则发送停止信号
 	if m.Author == nil || m.Author.ID == s.State.User.ID {
-		SetChannelDeleteTimer(m.ChannelID, 5*time.Minute)
+		//SetChannelDeleteTimer(m.ChannelID, 5*time.Minute)
 		stopChan <- model.ChannelStopChan{
 			Id: m.ChannelID,
 		}
@@ -229,18 +260,18 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			replyOpenAIChan <- reply
 		}
 
-		if ChannelAutoDelTime != "" {
-			delTime, _ := strconv.Atoi(ChannelAutoDelTime)
-			if delTime == 0 {
-				CancelChannelDeleteTimer(m.ChannelID)
-			} else if delTime > 0 {
-				// 删除该频道
-				SetChannelDeleteTimer(m.ChannelID, time.Duration(delTime)*time.Second)
-			}
-		} else {
-			// 删除该频道
-			SetChannelDeleteTimer(m.ChannelID, 5*time.Second)
-		}
+		//if ChannelAutoDelTime != "" {
+		//	delTime, _ := strconv.Atoi(ChannelAutoDelTime)
+		//	if delTime == 0 {
+		//		CancelChannelDeleteTimer(m.ChannelID)
+		//	} else if delTime > 0 {
+		//		// 删除该频道
+		//		SetChannelDeleteTimer(m.ChannelID, time.Duration(delTime)*time.Second)
+		//	}
+		//} else {
+		//	// 删除该频道
+		//	SetChannelDeleteTimer(m.ChannelID, 5*time.Second)
+		//}
 		stopChan <- model.ChannelStopChan{
 			Id: m.ChannelID,
 		}
@@ -262,14 +293,14 @@ func messageUpdate(s *discordgo.Session, m *discordgo.MessageUpdate) {
 		channel, err := Session.Channel(m.ChannelID)
 		// 不存在则直接删除频道
 		if err != nil || strings.HasPrefix(channel.Name, "cdp-对话") {
-			SetChannelDeleteTimer(m.ChannelID, 5*time.Minute)
+			//SetChannelDeleteTimer(m.ChannelID, 5*time.Minute)
 			return
 		}
 	}
 
 	// 如果作者为 nil 或消息来自 bot 本身,则发送停止信号
 	if m.Author == nil || m.Author.ID == s.State.User.ID {
-		SetChannelDeleteTimer(m.ChannelID, 5*time.Minute)
+		//SetChannelDeleteTimer(m.ChannelID, 5*time.Minute)
 		stopChan <- model.ChannelStopChan{
 			Id: m.ChannelID,
 		}
@@ -308,18 +339,18 @@ func messageUpdate(s *discordgo.Session, m *discordgo.MessageUpdate) {
 			replyOpenAIChan <- reply
 		}
 
-		if ChannelAutoDelTime != "" {
-			delTime, _ := strconv.Atoi(ChannelAutoDelTime)
-			if delTime == 0 {
-				CancelChannelDeleteTimer(m.ChannelID)
-			} else if delTime > 0 {
-				// 删除该频道
-				SetChannelDeleteTimer(m.ChannelID, time.Duration(delTime)*time.Second)
-			}
-		} else {
-			// 删除该频道
-			SetChannelDeleteTimer(m.ChannelID, 5*time.Second)
-		}
+		//if ChannelAutoDelTime != "" {
+		//	delTime, _ := strconv.Atoi(ChannelAutoDelTime)
+		//	if delTime == 0 {
+		//		CancelChannelDeleteTimer(m.ChannelID)
+		//	} else if delTime > 0 {
+		//		// 删除该频道
+		//		SetChannelDeleteTimer(m.ChannelID, time.Duration(delTime)*time.Second)
+		//	}
+		//} else {
+		//	// 删除该频道
+		//	SetChannelDeleteTimer(m.ChannelID, 5*time.Second)
+		//}
 		stopChan <- model.ChannelStopChan{
 			Id: m.ChannelID,
 		}
@@ -328,7 +359,7 @@ func messageUpdate(s *discordgo.Session, m *discordgo.MessageUpdate) {
 	return
 }
 
-func SendMessage(c *gin.Context, channelID, cozeBotId, message string) (*discordgo.Message, error) {
+func SendMessage(c *gin.Context, channelID, cozeBotId, message string) (*discordgo.Message, string, error) {
 	var ctx context.Context
 	if c == nil {
 		ctx = context.Background()
@@ -338,27 +369,31 @@ func SendMessage(c *gin.Context, channelID, cozeBotId, message string) (*discord
 
 	if Session == nil {
 		common.LogError(ctx, "discord session is nil")
-		return nil, fmt.Errorf("discord session not initialized")
+		return nil, "", fmt.Errorf("discord session not initialized")
 	}
 
 	//var sentMsg *discordgo.Message
 
 	content := fmt.Sprintf("%s \n <@%s>", message, cozeBotId)
 
+	content = strings.Replace(content, `\u0026`, "&", -1)
+	content = strings.Replace(content, `\u003c`, "<", -1)
+	content = strings.Replace(content, `\u003e`, ">", -1)
+
 	if runeCount := len([]rune(content)); runeCount > 50000 {
 		common.LogError(ctx, fmt.Sprintf("prompt已超过限制,请分段发送 [%v] %s", runeCount, content))
-		return nil, fmt.Errorf("prompt已超过限制,请分段发送 [%v]", runeCount)
+		return nil, "", fmt.Errorf("prompt已超过限制,请分段发送 [%v]", runeCount)
 	}
 
 	if len(UserAuthorizations) == 0 {
-		ChannelDel(channelID)
+		//SetChannelDeleteTimer(channelID, 5*time.Second)
 		common.LogError(c.Request.Context(), fmt.Sprintf("无可用的 user_auth"))
-		return nil, fmt.Errorf("no_available_user_auth")
+		return nil, "", fmt.Errorf("no_available_user_auth")
 	}
 
 	userAuth, err := common.RandomElement(UserAuthorizations)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	for i, sendContent := range common.ReverseSegment(content, 1888) {
@@ -375,7 +410,7 @@ func SendMessage(c *gin.Context, channelID, cozeBotId, message string) (*discord
 				return SendMessage(c, channelID, cozeBotId, message)
 			}
 			common.LogError(ctx, fmt.Sprintf("error sending message: %s", err))
-			return nil, fmt.Errorf("error sending message")
+			return nil, "", fmt.Errorf("error sending message")
 		}
 
 		//time.Sleep(1 * time.Second)
@@ -383,10 +418,10 @@ func SendMessage(c *gin.Context, channelID, cozeBotId, message string) (*discord
 		if i == len(common.ReverseSegment(content, 1888))-1 {
 			return &discordgo.Message{
 				ID: sentMsgId,
-			}, nil
+			}, userAuth, nil
 		}
 	}
-	return &discordgo.Message{}, fmt.Errorf("error sending message")
+	return &discordgo.Message{}, "", fmt.Errorf("error sending message")
 }
 
 func ChannelCreate(guildID, channelName string, channelType int) (string, error) {
@@ -472,16 +507,24 @@ func NewProxyClient(proxyUrl string) (proxyParse *url.URL, client *http.Client, 
 
 }
 
-func scheduleDailyMessage() {
+func stayActiveMessageTask() {
 	for {
-		// 计算距离下一个晚上12点的时间间隔
+		source := rand.NewSource(time.Now().UnixNano())
+		randomNumber := rand.New(source).Intn(60) // 生成0到60之间的随机整数
+
+		// 计算距离下一个时间间隔
 		now := time.Now()
-		next := now.Add(time.Hour * 24)
-		next = time.Date(next.Year(), next.Month(), next.Day(), 0, 0, 0, 0, next.Location())
+		next := time.Date(now.Year(), now.Month(), now.Day(), 9, 0, 0, 0, now.Location())
+
+		// 如果当前时间已经超过9点，那么等待到第二天的9点
+		if now.After(next) {
+			next = next.Add(24 * time.Hour)
+		}
+
 		delay := next.Sub(now)
 
 		// 等待直到下一个间隔
-		time.Sleep(delay)
+		time.Sleep(delay + time.Duration(randomNumber)*time.Second)
 
 		var taskBotConfigs = BotConfigList
 
@@ -503,7 +546,12 @@ func scheduleDailyMessage() {
 			} else {
 				sendChannelId = config.ChannelId
 			}
-			_, err := SendMessage(nil, sendChannelId, config.CozeBotId, "CDP Scheduled Task Job Send Msg Success！")
+			nextID, err := common.NextID()
+			if err != nil {
+				common.SysError(fmt.Sprintf("ChannelId{%s} BotId{%s} 活跃机器人任务消息发送异常!雪花Id生成失败!", sendChannelId, config.CozeBotId))
+				continue
+			}
+			_, _, err = SendMessage(nil, sendChannelId, config.CozeBotId, fmt.Sprintf("【%v】 %s", nextID, "CDP Scheduled Task Job Send Msg Success!"))
 			if err != nil {
 				common.SysError(fmt.Sprintf("ChannelId{%s} BotId{%s} 活跃机器人任务消息发送异常!", sendChannelId, config.CozeBotId))
 			} else {
@@ -570,7 +618,7 @@ func FilterConfigs(configs []model.BotConfig, secret, gptModel string, channelId
 	var filteredConfigs []model.BotConfig
 	for _, config := range configs {
 		matchSecret := secret == "" || config.ProxySecret == secret
-		matchGptModel := gptModel == "" || config.Model == gptModel
+		matchGptModel := gptModel == "" || common.SliceContains(config.Model, gptModel)
 		matchChannelId := channelId == nil || *channelId == "" || config.ChannelId == *channelId
 		if matchSecret && matchChannelId && matchGptModel {
 			filteredConfigs = append(filteredConfigs, config)

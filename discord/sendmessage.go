@@ -15,7 +15,7 @@ import (
 // 用户端发送消息 注意 此为临时解决方案 后续会优化代码
 func SendMsgByAuthorization(c *gin.Context, userAuth, content, channelId string) (string, error) {
 	postUrl := "https://discord.com/api/v9/channels/%s/messages"
-	content = strings.Replace(content, `\u0026`, "&", -1)
+
 	// 构造请求体
 	requestBody, err := json.Marshal(map[string]interface{}{
 		"content": content,
@@ -87,15 +87,15 @@ func SendMsgByAuthorization(c *gin.Context, userAuth, content, channelId string)
 		if errMessage, ok := result["message"].(string); ok {
 			if strings.Contains(errMessage, "401: Unauthorized") ||
 				strings.Contains(errMessage, "You need to verify your account in order to perform this action.") {
-				common.LogWarn(c.Request.Context(), fmt.Sprintf("USER_AUTHORIZATION:%s 已失效", userAuth))
+				common.LogWarn(c.Request.Context(), fmt.Sprintf("USER_AUTHORIZATION:%s EXPIRED", userAuth))
 				return "", &common.DiscordUnauthorizedError{
 					ErrCode: 401,
 					Message: "discord 鉴权未通过",
 				}
 			}
 		}
-		common.LogError(c.Request.Context(), fmt.Sprintf("result:%s", bodyString))
-		return "", fmt.Errorf("ID is not a string")
+		common.LogError(c.Request.Context(), fmt.Sprintf("user_auth:%s result:%s", userAuth, bodyString))
+		return "", fmt.Errorf("/api/v9/channels/%s/messages response err", channelId)
 	} else {
 		return id, nil
 	}
