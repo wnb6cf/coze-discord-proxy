@@ -1,8 +1,12 @@
 package discord
 
 import (
+	"context"
 	"coze-discord-proxy/common"
+	"coze-discord-proxy/telegram"
 	"fmt"
+	"github.com/bwmarrin/discordgo"
+	"github.com/gin-gonic/gin"
 	"strings"
 	"sync"
 	"time"
@@ -62,6 +66,112 @@ func CancelChannelDeleteTimer(channelId string) {
 			common.SysError(fmt.Sprintf("定时器无法停止或已触发，频道可能已被删除:%s", channelId))
 		}
 	} else {
-		common.SysError(fmt.Sprintf("频道无定时删除:%s", channelId))
+		//common.SysError(fmt.Sprintf("频道无定时删除:%s", channelId))
 	}
+}
+
+func ChannelCreate(guildID, channelName string, channelType int) (string, error) {
+	// 创建新的频道
+	st, err := Session.GuildChannelCreate(guildID, channelName, discordgo.ChannelType(channelType))
+	if err != nil {
+		common.LogError(context.Background(), fmt.Sprintf("创建频道时异常 %s", err.Error()))
+		return "", err
+	}
+	return st.ID, nil
+}
+
+func ChannelDel(channelId string) (string, error) {
+	// 删除频道
+	st, err := Session.ChannelDelete(channelId)
+	if err != nil {
+		common.LogError(context.Background(), fmt.Sprintf("删除频道时异常 %s", err.Error()))
+		return "", err
+	}
+	return st.ID, nil
+}
+
+func ChannelCreateComplex(guildID, parentId, channelName string, channelType int) (string, error) {
+	// 创建新的子频道
+	st, err := Session.GuildChannelCreateComplex(guildID, discordgo.GuildChannelCreateData{
+		Name:     channelName,
+		Type:     discordgo.ChannelType(channelType),
+		ParentID: parentId,
+	})
+	if err != nil {
+		common.LogError(context.Background(), fmt.Sprintf("创建子频道时异常 %s", err.Error()))
+		return "", err
+	}
+	return st.ID, nil
+}
+
+type channelCreateResult struct {
+	ID  string
+	Err error
+}
+
+//func CreateChannelWithRetry(c *gin.Context, guildID, channelName string, channelType int) (string, error) {
+//	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+//	defer cancel()
+//
+//	for i := 0; i < 3; i++ {
+//		resultCh := make(chan channelCreateResult)
+//
+//		go func() {
+//			channelID, err := ChannelCreate(guildID, channelName, channelType)
+//			resultCh <- channelCreateResult{ID: channelID, Err: err}
+//		}()
+//
+//		select {
+//		case result := <-resultCh:
+//			if result.Err != nil {
+//				common.LogWarn(c, fmt.Sprintf("Failed to create channel, error: %v", result.Err))
+//				continue
+//			}
+//			return result.ID, nil
+//		case <-ctx.Done():
+//			common.LogWarn(c, "Create channel timed out, retrying...")
+//		}
+//	}
+//	// tg发送通知
+//	if telegram.NotifyTelegramBotToken != "" && telegram.TgBot != nil {
+//		go func() {
+//			CreateChannelRiskChan <- "stop"
+//		}()
+//	}
+//	return "", errors.New("failed to create channel after 3 attempts, please reset BOT_TOKEN")
+//}
+
+func CreateChannelWithRetry(c *gin.Context, guildID, channelName string, channelType int) (string, error) {
+
+	for attempt := 0; attempt < 3; attempt++ {
+		resultChan := make(chan channelCreateResult, 1)
+
+		go func() {
+			id, err := ChannelCreate(guildID, channelName, channelType)
+			resultChan <- channelCreateResult{
+				ID:  id,
+				Err: err,
+			}
+		}()
+
+		// 设置超时时间为10秒
+		select {
+		case result := <-resultChan:
+			if result.Err != nil {
+				return "", result.Err
+			}
+			// 成功创建频道，返回结果
+			return result.ID, nil
+		case <-time.After(60 * time.Second):
+			common.LogWarn(c, "Create channel timed out, retrying...")
+		}
+	}
+	// tg发送通知
+	if telegram.NotifyTelegramBotToken != "" && telegram.TgBot != nil {
+		go func() {
+			CreateChannelRiskChan <- "stop"
+		}()
+	}
+	// 所有尝试后仍失败，返回最后的错误
+	return "", fmt.Errorf("failed after 3 attempts due to timeout, please reset BOT_TOKEN")
 }

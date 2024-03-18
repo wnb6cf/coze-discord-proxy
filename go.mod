@@ -8,8 +8,10 @@ go 1.21
 require (
 	github.com/bwmarrin/discordgo v0.27.1
 	github.com/gin-contrib/cors v1.5.0
+	github.com/gin-contrib/gzip v0.0.6
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-playground/validator/v10 v10.17.0
+	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/google/uuid v1.3.0
 	github.com/h2non/filetype v1.1.3
 	github.com/json-iterator/go v1.1.12

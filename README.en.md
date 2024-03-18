@@ -29,7 +29,7 @@ tutorial in the channel)
 - [x] Supports the picture-to-text/image-to-image/file-to-text interface aligned with `openai` (`v1/chat/completions`) (according to the request format of `GPT4V` interface [supports `url` or `base64`]) (supports specifying `discord-channel`).
 - [x] Supports the `dall-e-3` text-to-image interface aligned with `openai` (`v1/images/generations`).
 - [x] Supports the daily `9` o'clock scheduled task to automatically activate the bot.
-- [x] Supports configuring multiple discord user `Authorization` (environment variable `USER_AUTHORIZATION`) for request load balancing (**Currently each discord user calling coze-bot has a limit within 24h, you can configure multiple users to achieve superimposed request times and request load balancing**).
+- [x] Supports configuring multiple discord user `Authorization` (environment variable `USER_AUTHORIZATION`) for request load balancing (**Currently each discord user calling coze-bot has a [limit](#Limitations) within 24h, you can configure multiple users to achieve superimposed request times and request load balancing**).
 - [x] Supports configuring multiple coze bots for response load balancing (specified by `PROXY_SECRET`/`model`) For details, see [Advanced Configuration](#Advanced-Configuration).
 
 ### API Documentation:
@@ -182,23 +182,26 @@ Render can directly deploy docker images, no need to fork the repository: [Rende
 
 ### Environment Variables
 
-1. `USER_AUTHORIZATION:MTA5OTg5N************uIfytxUgJfmaXUBHVI` - Authorization keys of the Discord users who initiate messages (for multiple keys, please separate with commas)
-2. `BOT_TOKEN:MTE5OTk2************rUWNbG63w` - Bot-Token for listening to messages
-3. `GUILD_ID:11************96` - Server ID where all Bots are located
-4. `COZE_BOT_ID:11************97` - Bot-ID managed by Coze
-5. `PORT:7077` - [Optional] Port number, default is 7077
-6. `SWAGGER_ENABLE` - [Optional] Enable Swagger API documentation [0: No; 1: Yes] (default is 1)
-7. `ONLY_OPENAI_API` - [Optional] Expose only those APIs that align with OpenAI [0: No; 1: Yes] (default is 0)
-8. `CHANNEL_ID:11************24` - [Optional] Default channel - (In the current version, this parameter is only used to keep the Bot active)
-9. `PROXY_SECRET:123456` - [Optional] Interface key - modify this line to validate the request header value (for multiple keys, please separate with commas) (consistent with the usage of OpenAI-API-KEY), **recommended to use this environment variable**
-10. `DEFAULT_CHANNEL_ENABLE:0` - [Optional] Enable default channel [0: No; 1: Yes] (default is 0). Once enabled, each conversation will take place in the default channel, **session isolation will be ineffective**, **not recommended to use this environment variable**
-11. `ALL_DIALOG_RECORD_ENABLE:1` - [Optional] Enable full context recording [0: No; 1: Yes] (default is 1). If turned off, only the last `content` with `role` as `user` in `messages` will be sent each time, **not recommended to use this environment variable**
-12. `CHANNEL_AUTO_DEL_TIME:5` - [Optional] Automatic channel deletion time (seconds). This parameter determines the time to automatically delete the channel after each conversation (default is 5s). If set to 0, the channel will not be deleted, **not recommended to use this environment variable**
-13. `COZE_BOT_STAY_ACTIVE_ENABLE:1` - [Optional] Enable the daily task of keeping the Coze-bot active at `9` o'clock [0: No; 1: Yes] (default is 1), **not recommended to use this environment variable**
-14. `REQUEST_OUT_TIME:60` - [Optional] Request timeout for non-stream response in dialogue interface, **not recommended to use this environment variable**
-15. `STREAM_REQUEST_OUT_TIME:60` - [Optional] Stream return timeout for each stream response in dialogue interface, **not recommended to use this environment variable**
-16. `USER_AGENT:Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36` - [Optional] Discord user agent. Using your own may effectively prevent being banned. If not set, the author's default will be used. It is recommended to use this environment variable.
-17. `PROXY_URL:http://127.0.0.1:10801` - [Optional] Proxy (only supports http)
+1. `USER_AUTHORIZATION=MTA5OTg5N************uIfytxUgJfmaXUBHVI` - Authorization keys of the Discord users who initiate messages (for multiple keys, please separate with commas)
+2. `BOT_TOKEN=MTE5OTk2************rUWNbG63w` - Bot-Token for listening to messages
+3. `GUILD_ID=11************96` - Server ID where all Bots are located
+4. `COZE_BOT_ID=11************97` - Bot-ID managed by Coze
+5. `PORT=7077` - [Optional] Port number, default is 7077
+6. `SWAGGER_ENABLE=1` - [Optional] Enable Swagger API documentation [0: No; 1: Yes] (default is 1)
+7. `ONLY_OPENAI_API=0` - [Optional] Expose only those APIs that align with OpenAI [0: No; 1: Yes] (default is 0)
+8. `CHANNEL_ID=11************24` - [Optional] Default channel - (In the current version, this parameter is only used to keep the Bot active)
+9. `PROXY_SECRET=123456` - [Optional] Interface key - modify this line to validate the request header value (for multiple keys, please separate with commas) (consistent with the usage of OpenAI-API-KEY), **recommended to use this environment variable**
+10. `DEFAULT_CHANNEL_ENABLE=0` - [Optional] Enable default channel [0: No; 1: Yes] (default is 0). Once enabled, each conversation will take place in the default channel, **session isolation will be ineffective**, **not recommended to use this environment variable**
+11. `ALL_DIALOG_RECORD_ENABLE=1` - [Optional] Enable full context recording [0: No; 1: Yes] (default is 1). If turned off, only the last `content` with `role` as `user` in `messages` will be sent each time, **not recommended to use this environment variable**
+12. `CHANNEL_AUTO_DEL_TIME=5` - [Optional] Automatic channel deletion time (seconds). This parameter determines the time to automatically delete the channel after each conversation (default is 5s). If set to 0, the channel will not be deleted, **not recommended to use this environment variable**
+13. `COZE_BOT_STAY_ACTIVE_ENABLE=1` - [Optional] Enable the daily task of keeping the Coze-bot active at `9` o'clock [0: No; 1: Yes] (default is 1), **not recommended to use this environment variable**
+14. `REQUEST_OUT_TIME=60` - [Optional] Request timeout for non-stream response in dialogue interface, **not recommended to use this environment variable**
+15. `STREAM_REQUEST_OUT_TIME=60` - [Optional] Stream return timeout for each stream response in dialogue interface, **not recommended to use this environment variable**
+16. `REQUEST_RATE_LIMIT=60` - [Optional] Request rate limit per minute, default: 60 requests/min
+17. `USER_AGENT=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36` - [Optional] Discord user agent. Using your own may effectively prevent being banned. If not set, the author's default will be used. It is recommended to use this environment variable.
+18. `NOTIFY_TELEGRAM_BOT_TOKEN=6232***********Niz9c` [Optional] Functions as the token for the TelegramBot notification (Notification events include: 1. Unavailability of user_authorization; 2. Risk control trigger by the BOT associated with BOT_TOKEN)
+19. `NOTIFY_TELEGRAM_USER_ID=10******35` [Optional] The Telegram-Bot linked with NOTIFY_TELEGRAM_BOT_TOKEN forwards notifications to the Telegram-User associated with this variable (This variable must not be empty when NOTIFY_TELEGRAM_BOT_TOKEN is populated)
+20. `PROXY_URL=http://127.0.0.1:10801` - [Optional] Proxy (only supports http)
 
 ## Advanced Configuration
 
@@ -248,7 +251,7 @@ GPT-4 (8k) - 100 times/day
 GPT-3.5 (16k) - 500 times/day
 ```
 
-Multiple Discord user `Authorization` can be configured (refer to the environment variable `USER_AUTHORIZATION`) to achieve cumulative request times and load balancing for requests.
+Multiple Discord user `Authorization` can be configured (refer to the [environment variable](#Environment-Variables) `USER_AUTHORIZATION`) to achieve cumulative request times and load balancing for requests.
 
 ## Q&A
 

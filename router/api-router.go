@@ -1,7 +1,7 @@
 package router
 
 import (
-	"coze-discord-proxy/common"
+	"coze-discord-proxy/common/config"
 	"coze-discord-proxy/controller"
 	_ "coze-discord-proxy/docs"
 	"coze-discord-proxy/middleware"
@@ -12,12 +12,13 @@ import (
 
 func SetApiRouter(router *gin.Engine) {
 	router.Use(middleware.CORS())
-
-	if common.SwaggerEnable == "" || common.SwaggerEnable == "1" {
+	//router.Use(gzip.Gzip(gzip.DefaultCompression))
+	router.Use(middleware.RequestRateLimit())
+	if config.SwaggerEnable == "" || config.SwaggerEnable == "1" {
 		router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	}
 
-	if common.OnlyOpenaiApi != "1" {
+	if config.OnlyOpenaiApi != "1" {
 		apiRouter := router.Group("/api")
 		apiRouter.Use(middleware.Auth())
 		{
